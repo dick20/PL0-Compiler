@@ -73,6 +73,7 @@ procedure getsym;
           write('PROGRAM INCOMPLETE'); 
           writeln(fout, 'PROGRAM INCOMPLETE');
           close(fin);
+          close(fout);
           exit(); {实现goto 99 功能}
         end;
       {读新的一行}
@@ -125,7 +126,7 @@ procedure getsym;
       repeat  
         k := (i+j) div 2; {用二分查找法在保留字表中找当前的标识符id}
         if id <= word[k] then j := k-1; 
-        if id >= word[k] then i := k + 1
+        if id >= word[k] then i := k+1
       until i > j;
       if i-1 > j then sym := wsym[k] else sym := ident
       {如果找到, 当前记号sym为保留字, 否则sym为标识符}
@@ -135,7 +136,7 @@ procedure getsym;
       begin {数字} 
       k := 0;  num := 0;  sym := number; {当前记号sym为数字}
       repeat {计算数字串的值}
-        num := 10*num + (ord(ch)-ord(0));
+        num := 10*num + (ord(ch)-ord('0'));
         {ord(ch)和ord(0)是ch和0在ASCII码中的序号}
         k := k + 1;  
         getch;
@@ -153,9 +154,36 @@ procedure getsym;
           end
         else  
           sym := nul;
-        end 
+      end 
+    else if ch = '<'
+      then begin
+        getch;
+        if ch = '='
+          then begin
+            sym := leq;
+            getch
+          end
+        else if ch = '>'
+          then begin
+            sym := neq;
+            getch
+          end
+        else
+          sym := lss
+      end
+    else if ch = '>'
+      then begin
+        getch;
+        if ch = '='
+          then begin
+            sym := geq;
+            getch
+          end
+        else
+          sym := gtr
+      end
     else {处理其它算符或标点符号}
-      begin  
+      begin
         sym := ssym[ch];  
         getch
       end
@@ -237,17 +265,16 @@ procedure block(lev, tx : integer; fsys : symset);
           getsym;
           if sym in [eql, becomes] then {当前记号是等号或赋值号}
             begin
-            if sym = becomes then 
-              error(1);
-              {如果当前记号是赋值号,则出错}
+              if sym = becomes then error(1);
+                {如果当前记号是赋值号,则出错}
               getsym;
-            if sym = number then {等号后面是常数}
-              begin  
-                enter(constant); {将常数名加入符号表}
-                getsym
-              end
-            else error(2) {等号后面不是常数出错}
-          end 
+              if sym = number then {等号后面是常数}
+                begin  
+                  enter(constant); {将常数名加入符号表}
+                  getsym
+                end
+              else error(2) {等号后面不是常数出错}
+            end 
           else error(3) {标识符后不是等号或赋值号出错}
         end 
       else error(4) {常数说明中没有常数名标识符}
@@ -269,7 +296,8 @@ procedure block(lev, tx : integer; fsys : symset);
       for i := cx0 to cx-1 do 
       {cx0: 本过程第一个代码的序号,cx-1: 本过程最后一个代码的序号}
         with code[i] do {打印第i条代码}
-          writeln(i, mnemonic[f] : 5, l : 3, a : 5)
+          writeln(fout, i, '  ',mnemonic[f] : 5, l : 3, a : 5)
+          {writeln(i, mnemonic[f] : 5, l : 3, a : 5)}
    {i: 代码序号; 
     mnemonic[f]: 功能码的字符串;
     l: 相对层号(层差);
@@ -313,14 +341,15 @@ procedure block(lev, tx : integer; fsys : symset);
                     getsym {取下一记号}
                   end 
                 else if sym = number then {当前记号是数字}
-                begin
-                  if num > amax then {若数值越界,则出错}
-                  begin 
-                    error(30); num := 0 
-                  end;
-                  gen(lit, 0, num); 
-                  {生成一条指令, 将常数num取到栈顶}
-                  getsym {取下一记号}
+                  begin
+                    if num > amax then {若数值越界,则出错}
+                    begin 
+                      error(30); 
+                      num := 0 
+                    end;
+                    gen(lit, 0, num); 
+                    {生成一条指令, 将常数num取到栈顶}
+                    getsym {取下一记号}
                   end 
                 else if sym = lparen then {如果当前记号是左括号}
                   begin 
@@ -598,7 +627,7 @@ procedure block(lev, tx : integer; fsys : symset);
   test(statbegsys+[ident], declbegsys, 7)
   {检测当前记号是否语句开始符号, 否则出错, 并跳过一些
   记号}
-  until (sym in declbegsys); 
+  until not (sym in declbegsys); 
   {回到说明语句的处理(出错时才用),直到当前记号不是说明语句
    的开始符号}
   code[table[tx0].adr].a := cx;  {table[tx0].adr是本过程名的第1条
@@ -635,6 +664,7 @@ procedure interpret;
   end {base};
   begin  
     writeln('START PL/0');
+    writeln(fout, 'START PL/0');
     t := 0; {栈顶地址寄存器}
     b := 1; {基地址寄存器}
     p := 0; {程序地址寄存器}
@@ -726,6 +756,7 @@ procedure interpret;
           begin {当前指令是保存变量值(sto, l, a)指令}
             s[base(l) + a] := s[t];  
             writeln(s[t]); 
+            writeln(fout, s[t]);
             {根据静态链SL,将栈顶的值存入层差为l,相对地址
               为a的变量中}
             t := t-1 {栈顶指针减1}
@@ -758,6 +789,7 @@ procedure interpret;
     until p = 0; 
     {程序一直执行到p取最外层主程序的返回地址0时为止}
     write('END PL/0');
+    write(fout, 'END PL/0');
   end; {interpret}
 
 
@@ -820,7 +852,11 @@ begin  {主程序}
   {如果当前记号不是句号, 则出错}
   if err = 0 then interpret
   {如果编译无错误, 则解释执行中间代码}
-  else write('ERRORS IN PL/0 PROGRAM');
+  else 
+    begin
+      write('ERRORS IN PL/0 PROGRAM');
+      write(fout, 'ERRORS IN PL/0 PROGRAM');
+    end;
   writeln;
   close(fin);
   readln(sfile);
