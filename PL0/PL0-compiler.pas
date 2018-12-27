@@ -3,7 +3,7 @@
 program  PL0 ( input, output);
 {带有代码生成的PL0编译程序}
 const
-  norw = 11; {保留字的个数}
+  norw = 13; {保留字的个数}
   txmax = 100; {标识符表长度}
   nmax = 14; {数字的最大位数}
   al = 10; {标识符的长度}
@@ -14,11 +14,12 @@ type
   symbol = (nul, ident, number, plus, minus, times, slash, oddsym,
   eql, neq, lss, leq, gtr, geq, lparen, rparen, comma, semicolon,
   period, becomes, beginsym, endsym, ifsym, thensym,
-  whilesym, dosym, callsym, constsym, varsym, procsym );
+  whilesym, dosym, callsym, constsym, varsym, procsym,
+  readsym, writesym);
   alfa = packed array [1..al] of char; 
   object2 = (constant, variable, procedure2);
   symset = set of symbol;
-  fct = (lit, opr, lod, sto, cal, int, jmp, jpc); {functions}
+  fct = (lit, opr, lod, sto, cal, int, jmp, jpc, red, wrt); {functions}
   instruction = packed record
     f : fct;  {功能码}
     l : 0..levmax; {相对层数}
@@ -60,7 +61,7 @@ var
 
 procedure error (n : integer);
   begin 
-    writeln('****', ' ' : cc-1, '↑', n : 2);  
+    writeln('****', ' ' : cc-1, '^', n : 2);  
     err := err + 1
     {cc为当前行已读的字符数, n为错误号}{错误数err加1}
   end {error};
@@ -154,37 +155,10 @@ procedure getsym;
           end
         else  
           sym := nul;
-      end 
-    else if ch = '<'
-      then begin
-        getch;
-        if ch = '='
-          then begin
-            sym := leq;
-            getch
-          end
-        else if ch = '>'
-          then begin
-            sym := neq;
-            getch
-          end
-        else
-          sym := lss
-      end
-    else if ch = '>'
-      then begin
-        getch;
-        if ch = '='
-          then begin
-            sym := geq;
-            getch
-          end
-        else
-          sym := gtr
       end
     else {处理其它算符或标点符号}
       begin
-        sym := ssym[ch];  
+        sym := ssym[ch];
         getch
       end
   end {getsym};
@@ -296,7 +270,7 @@ procedure block(lev, tx : integer; fsys : symset);
       for i := cx0 to cx-1 do 
       {cx0: 本过程第一个代码的序号,cx-1: 本过程最后一个代码的序号}
         with code[i] do {打印第i条代码}
-          writeln(fout, i, '  ',mnemonic[f] : 5, l : 3, a : 5)
+          writeln(fout, i:3,mnemonic[f] : 5, l : 3, a : 5)
           {writeln(i, mnemonic[f] : 5, l : 3, a : 5)}
    {i: 代码序号; 
     mnemonic[f]: 功能码的字符串;
@@ -550,6 +524,51 @@ procedure block(lev, tx : integer; fsys : symset);
             条件表达式的代码的第一条指令处} 
             code[cx2].a := cx 
             {把下一指令地址回填到前面生成的jpc指令的地址栏}
+          end
+          else if sym = readsym then {处理read关键字}
+          begin
+            getsym;
+            if sym = lparen then{如果read后是左括号}
+              repeat
+                getsym;
+                if sym = ident
+                then begin
+                  i := position(id);
+                  if i = 0
+                    then error(11)
+                  else if table[i].kind <> variable
+                  then begin
+                    error(12);
+                    i := 0
+                  end
+                  else with table[i] do
+                    gen(red,lev-level,adr)
+                end
+                else  error(4);
+              getsym;
+              until sym <> comma
+            else
+              error(40);
+            if sym <> rparen
+            then error(22);
+            getsym
+          end
+          else if sym = writesym
+            then begin
+              getsym;
+            if sym = lparen
+            then begin
+              repeat
+                getsym;
+                expression([rparen,comma]+fsys);
+                gen(wrt,0,0);
+              until sym <> comma;
+              if sym <> rparen
+              then error(22);
+            getsym
+            end
+            else
+              error(40)
           end;
         test(fsys, [ ], 19) 
       {测试下一记号是否正常, 否则出错, 跳过一些记号}
@@ -784,6 +803,17 @@ procedure interpret;
             {如果当前运算结果为“假”(0), 程序转到地址a
              执行, 否则顺序执行}
             t := t-1 {数据栈顶指针减1}
+          end;
+          red : 
+          begin {对red指令}
+            writeln('Please input your number:'); 
+            readln(s[base(l)+a]); {读一行数据,读入到相差l层,层内偏移为a的数据栈中的数据的信息}
+          end;
+          wrt : 
+          begin {对wrt指令}
+            writeln('your output: ', s[t]);
+            writeln(fout, 'your output: ', s[t]);
+            t := t+1  {栈顶上移}
           end
         end {with, case}
     until p = 0; 
@@ -809,15 +839,17 @@ begin  {主程序}
   word[3] := 'const     '; word[4] := 'do        ';
   word[5] := 'end       '; word[6] := 'if        ';
   word[7] := 'odd       '; word[8] := 'procedure ';
-  word[9] := 'then      '; word[10] := 'var       ';
-  word[11] := 'while     '; 
+  word[9] := 'read      '; word[10]:= 'then      ';
+  word[11]:= 'var       '; word[12]:= 'while     ';
+  word[13]:= 'write     ';
   {保留字}
   wsym[1] := beginsym;   wsym[2] := callsym;
   wsym[3] := constsym;   wsym[4] := dosym;
-  wsym[5] := endsym;    wsym[6] := ifsym;
-  wsym[7] := oddsym;    wsym[8] := procsym;
-  wsym[9] := thensym;    wsym[10] := varsym;
-  wsym[11] := whilesym;
+  wsym[5] := endsym;     wsym[6] := ifsym;
+  wsym[7] := oddsym;     wsym[8] := procsym;
+  wsym[9] := readsym;    wsym[10] := thensym;
+  wsym[11] := varsym;  wsym[12] := whilesym;
+  wsym[13] := writesym;
   {保留字的记号}
   ssym['+'] := plus;      ssym['-'] := minus;
   ssym['*'] := times;     ssym['/'] := slash;
@@ -828,10 +860,11 @@ begin  {主程序}
   ssym['@'] := leq;      ssym['#'] := geq; {小于等于 用@表示， 大于等于 用#表示}
   ssym[';'] := semicolon;
   {算符和标点符号的记号}
-  mnemonic[lit] := 'LIT';     mnemonic[opr] := 'OPR';
-  mnemonic[lod] := 'LOD';    mnemonic[sto] := 'STO';
-  mnemonic[cal] := 'CAL';    mnemonic[int] := 'INT';
-  mnemonic[jmp] := 'JMP';    mnemonic[jpc] := 'JPC';
+  mnemonic[lit] := '  LIT  ';    mnemonic[opr] := '  OPR  ';
+  mnemonic[lod] := '  LOD  ';    mnemonic[sto] := '  STO  ';
+  mnemonic[cal] := '  CAL  ';    mnemonic[int] := '  INT  ';
+  mnemonic[jmp] := '  JMP  ';    mnemonic[jpc] := '  JPC  ';
+  mnemonic[red] := '  RED  ';    mnemonic[wrt] := '  WRT  ';
   {中间代码指令的字符串}
   declbegsys := [constsym, varsym, procsym];
   {说明语句的开始符号}

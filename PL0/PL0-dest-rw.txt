@@ -1,0 +1,13 @@
+    0 var input;
+    1 begin 
+    2   read(input);
+    3   write(input);
+    5 end.
+  1  INT  0    4
+  2  RED  0    3
+  3  LOD  0    3
+  4  WRT  0    0
+  5  OPR  0    0
+START PL/0
+your output: 56
+END PL/0

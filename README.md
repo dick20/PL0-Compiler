@@ -1,5 +1,36 @@
 # PL0-Compiler
-中山大学编译原理项目：PL0语言的编译程序
+### 使用方法
+
+测试PL0代码样例
+
++ PL0-sourse.txt( 不带read与write命令）
++ PL0-sourse-rw.txt（带read与write命令）
+
+测试方法
+
++ 在命令行PL0文件夹目录下
+
+  + 编译
+
+    ``` 
+    fpc PL0-compiler.pas
+    ```
+
+  + 执行
+
+    ```
+    PL0-compiler.exe
+    ```
+
+  + 输入PL0代码文件（PL0-sourse.txt)
+
+  + 输入结果输出文件（PL0-dest.txt）
+
++ 最终结果显示在PL0-dest.txt中，包括栈中数据，最终结果，中间代码等
+
+
+
+### 中山大学编译原理项目：PL0语言的编译程序
 
 + 找到PASCAL编译系统;
 + 在PASCAL系统上运行PL0编译程序,需要对PL0编译程序作一些修改﹑调试;
