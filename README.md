@@ -28,7 +28,7 @@
 
 + 最终结果显示在PL0-dest.txt中，包括栈中数据，最终结果，中间代码等
 
-
+[1](https://github.com/dick20/PL0-Compiler/blob/master/image/1.png)
 
 ### 中山大学编译原理项目：PL0语言的编译程序
 
